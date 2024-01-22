@@ -1,11 +1,11 @@
 package main
 
 import (
-	executionv1a2 "github.com/renaynay/astria-hackathon/gen/astria/execution/v1alpha2"
+	astriaGrpc "buf.build/gen/go/astria/astria/grpc/go/astria/execution/v1alpha2/executionv1alpha2grpc"
 )
 
 type ExecutionServiceServerV1Alpha2 struct {
-	executionv1a2.UnimplementedExecutionServiceServer
+	astriaGrpc.UnimplementedExecutionServiceServer
 }
 
 func main() {
