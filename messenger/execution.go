@@ -1,4 +1,4 @@
-package execution
+package messenger
 
 import (
 	"context"
@@ -9,10 +9,13 @@ import (
 
 type ExecutionServiceServerV1Alpha2 struct {
 	astriaGrpc.ExecutionServiceServer
+	m *Messenger
 }
 
-func NewExecutionServiceServerV1Alpha2() *ExecutionServiceServerV1Alpha2 {
-	return &ExecutionServiceServerV1Alpha2{}
+func NewExecutionServiceServerV1Alpha2(m *Messenger) *ExecutionServiceServerV1Alpha2 {
+	return &ExecutionServiceServerV1Alpha2{
+		m: m,
+	}
 }
 
 func (s *ExecutionServiceServerV1Alpha2) GetBlock(ctx context.Context, req *astriaPb.GetBlockRequest) (*astriaPb.Block, error) {
