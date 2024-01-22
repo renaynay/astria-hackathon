@@ -2,9 +2,11 @@ package messenger
 
 import (
 	"context"
+	"errors"
 
 	astriaGrpc "buf.build/gen/go/astria/astria/grpc/go/astria/execution/v1alpha2/executionv1alpha2grpc"
 	astriaPb "buf.build/gen/go/astria/astria/protocolbuffers/go/astria/execution/v1alpha2"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 type ExecutionServiceServerV1Alpha2 struct {
@@ -18,29 +20,49 @@ func NewExecutionServiceServerV1Alpha2(m *Messenger) *ExecutionServiceServerV1Al
 	}
 }
 
-func (s *ExecutionServiceServerV1Alpha2) GetBlock(ctx context.Context, req *astriaPb.GetBlockRequest) (*astriaPb.Block, error) {
-	println("GetBlock called", "request", req)
-	res := &astriaPb.Block{
-		Number:          uint32(0),
-		Hash:            []byte{0x0},
-		ParentBlockHash: []byte{0x0},
+func (s *ExecutionServiceServerV1Alpha2) getSingleBlock(height uint32) (*astriaPb.Block, error) {
+	if height > uint32(len(s.m.Blocks)) {
+		return nil, errors.New("block not found")
 	}
-	println("GetBlock completed", "request", req, "response", res)
-	return res, nil
+
+	block := s.m.Blocks[height]
+	timestamp := timestamppb.New(block.timestamp)
+
+	return &astriaPb.Block{
+		Number:          height,
+		Hash:            block.hash,
+		ParentBlockHash: s.m.Blocks[height-1].hash,
+		Timestamp:       timestamp,
+	}, nil
+}
+
+func (s *ExecutionServiceServerV1Alpha2) GetBlock(ctx context.Context, req *astriaPb.GetBlockRequest) (*astriaPb.Block, error) {
+	switch req.Identifier.Identifier.(type) {
+	case *astriaPb.BlockIdentifier_BlockNumber:
+		block, err := s.getSingleBlock(uint32(req.Identifier.GetBlockNumber()))
+		if err != nil {
+			return nil, err
+		}
+		return block, nil
+	default:
+		return nil, errors.New("invalid identifier")
+	}
 }
 
 func (s *ExecutionServiceServerV1Alpha2) BatchGetBlocks(ctx context.Context, req *astriaPb.BatchGetBlocksRequest) (*astriaPb.BatchGetBlocksResponse, error) {
-	println("BatchGetBlocks called", "request", req)
 	res := &astriaPb.BatchGetBlocksResponse{
-		Blocks: []*astriaPb.Block{
-			{
-				Number:          uint32(0),
-				Hash:            []byte{0x0},
-				ParentBlockHash: []byte{0x0},
-			},
-		},
+		Blocks: []*astriaPb.Block{},
 	}
-	println("BatchGetBlocks completed", "request", req, "response", res)
+	for _, id := range req.Identifiers {
+		switch id.Identifier.(type) {
+		case *astriaPb.BlockIdentifier_BlockNumber:
+			block, err := s.getSingleBlock(uint32(id.GetBlockNumber()))
+			if err != nil {
+				return nil, err
+			}
+			res.Blocks = append(res.Blocks, block)
+		}
+	}
 	return res, nil
 }
 
