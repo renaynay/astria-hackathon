@@ -1,6 +1,7 @@
 package messenger
 
 import (
+	"bytes"
 	"context"
 	"errors"
 
@@ -67,31 +68,24 @@ func (s *ExecutionServiceServerV1Alpha2) BatchGetBlocks(ctx context.Context, req
 }
 
 func (s *ExecutionServiceServerV1Alpha2) ExecuteBlock(ctx context.Context, req *astriaPb.ExecuteBlockRequest) (*astriaPb.Block, error) {
-	println("ExecuteBlock called", "request", req)
-	res := &astriaPb.Block{
-		Number:          uint32(0),
-		Hash:            []byte{0x0},
-		ParentBlockHash: []byte{0x0},
+	if !bytes.Equal(req.PrevBlockHash, s.m.Blocks[len(s.m.Blocks)-1].hash) {
+		return nil, errors.New("invalid prev block hash")
 	}
-	println("ExecuteBlock completed", "request", req, "response", res)
-	return res, nil
+	txs := []Transaction{}
+	for _, tx := range req.Transactions {
+		txs = append(txs, NewTransaction(tx))
+	}
+	block := NewBlock(uint32(len(s.m.Blocks)), txs, req.Timestamp.AsTime())
+	s.m.Blocks = append(s.m.Blocks, block)
+
+	return block.toPb(), nil
 }
 
 func (s *ExecutionServiceServerV1Alpha2) GetCommitmentState(ctx context.Context, req *astriaPb.GetCommitmentStateRequest) (*astriaPb.CommitmentState, error) {
-	println("GetCommitmentState called", "request", req)
 	res := &astriaPb.CommitmentState{
-		Soft: &astriaPb.Block{
-			Number:          uint32(0),
-			Hash:            []byte{0x0},
-			ParentBlockHash: []byte{0x0},
-		},
-		Firm: &astriaPb.Block{
-			Number:          uint32(0),
-			Hash:            []byte{0x0},
-			ParentBlockHash: []byte{0x0},
-		},
+		Soft: s.m.Blocks[len(s.m.Blocks)-1].toPb(),
+		Firm: s.m.Blocks[len(s.m.Blocks)-1].toPb(),
 	}
-	println("GetCommitmentState completed", "request", req, "response", res)
 	return res, nil
 }
 
